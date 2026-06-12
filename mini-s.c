@@ -1,0 +1,113 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+void salvar_historico(char *input) {
+  FILE *file = fopen("history.txt", "a");
+
+  if (file == NULL) {
+    printf("Erro ao abrir arquivo\n");
+    return;
+  }
+
+  fprintf(file, "%s\n", input);
+  fclose(file);
+}
+
+void limpar_historico() {
+  FILE *file = fopen("history.txt", "w");
+
+  if (file == NULL) {
+    printf("Erro ao limpar histórico\n");
+    return;
+  }
+
+  fclose(file);
+  printf("Histórico limpo!\n");
+}
+
+int main() {
+  char input[100];
+
+  while (1) {
+    printf("> ");
+    fgets(input, sizeof(input), stdin);
+
+    // remove \n
+    input[strcspn(input, "\n")] = 0;
+
+    // salva no histórico
+    salvar_historico(input);
+
+    // pega o comando
+    char *cmd = strtok(input, " ");
+
+    if (cmd == NULL)
+      continue;
+
+    // sair
+    if (strcmp(cmd, "exit") == 0) {
+      printf("Saindo...\n");
+      break;
+    }
+
+    else if (strcmp(cmd, "clear_history") == 0) {
+      limpar_historico();
+    }
+
+    else if (strcmp(cmd, "history") == 0) {
+      FILE *file = fopen("history.txt", "r");
+
+      if (file == NULL) {
+        printf("Nenhum histórico encontrado\n");
+        continue;
+      }
+
+      char linha[100];
+
+      while (fgets(linha, sizeof(linha), file)) {
+        printf("%s", linha);
+      }
+
+      fclose(file);
+    }
+
+    // help
+    else if (strcmp(cmd, "help") == 0) {
+      printf("Comandos:\n");
+      printf("  echo <texto>\n");
+      printf("  sum <numeros>\n");
+      printf("  exit\n");
+    }
+
+    // echo
+    else if (strcmp(cmd, "echo") == 0) {
+      char *token = strtok(NULL, " ");
+      while (token != NULL) {
+        printf("%s ", token);
+        token = strtok(NULL, " ");
+      }
+      printf("\n");
+    }
+
+    // sum
+    else if (strcmp(cmd, "sum") == 0) {
+      char *token = strtok(NULL, " ");
+      int total = 0;
+
+      while (token != NULL) {
+        total += atoi(token);
+        token = strtok(NULL, " ");
+      }
+
+      printf("Resultado: %d\n", total);
+    }
+
+    // comando desconhecido
+    else {
+      printf("Comando desconhecido\n");
+    }
+  }
+
+  return 0;
+}
