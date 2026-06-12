@@ -33,22 +33,32 @@ int main() {
     printf("> ");
     fgets(input, sizeof(input), stdin);
 
-    // remove \n
     input[strcspn(input, "\n")] = 0;
 
-    // salva no histórico
     salvar_historico(input);
 
-    // pega o comando
     char *cmd = strtok(input, " ");
 
     if (cmd == NULL)
       continue;
 
-    // sair
     if (strcmp(cmd, "exit") == 0) {
       printf("Saindo...\n");
       break;
+    }
+
+    else if (strcmp(cmd, "run") == 0) {
+      char comando[100] = "";
+
+      char *token = strtok(NULL, " ");
+
+      while (token != NULL) {
+        strcat(comando, token);
+        strcat(comando, " ");
+        token = strtok(NULL, " ");
+      }
+
+      system(comando);
     }
 
     else if (strcmp(cmd, "clear_history") == 0) {
