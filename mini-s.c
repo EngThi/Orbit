@@ -29,6 +29,10 @@ void limpar_historico() {
 
 int main() {
   char input[100];
+  char *comandos[] = {"help",          "echo", "sum", "history",
+                      "clear_history", "run",  "cd",  "repeat"};
+
+  int total_comandos = 8;
 
   while (1) {
     printf("> ");
@@ -99,12 +103,54 @@ int main() {
       system(comando);
     }
 
+    else if (strcmp(cmd, "repeat") == 0) {
+      char *arg = strtok(NULL, " ");
+
+      if (arg == NULL) {
+        printf("Uso: repeat <numero>\n");
+        continue;
+      }
+
+      int num = atoi(arg);
+      FILE *file = fopen("history.txt", "r");
+
+      if (file == NULL) {
+        printf("Nenhum histórico encontrado\n");
+        continue;
+      }
+
+      char linha_arq[100];
+      int contador = 0;
+      char comando_salvo[100] = "";
+      int encontrado = 0;
+
+      while (fgets(linha_arq, sizeof(linha_arq), file)) {
+        contador++;
+        if (contador == num) {
+          strcpy(comando_salvo, linha_arq);
+          encontrado = 1;
+          break;
+        }
+      }
+
+      fclose(file);
+
+      if (encontrado) {
+        comando_salvo[strcspn(comando_salvo, "\r\n")] = 0;
+        printf("Executando: %s\n", comando_salvo);
+        system(comando_salvo);
+      } else {
+        printf("Linha %d não encontrada no histórico\n", num);
+      }
+    }
+
     // help
     else if (strcmp(cmd, "help") == 0) {
-      printf("Comandos:\n");
-      printf("  echo <texto>\n");
-      printf("  sum <numeros>\n");
-      printf("  exit\n");
+      printf("Comandos disponíveis:\n");
+
+      for (int i = 0; i < total_comandos; i++) {
+        printf("- %s\n", comandos[i]);
+      }
     }
 
     // echo
