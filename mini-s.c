@@ -3,181 +3,205 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MAX_INPUT 256
+#define MAX_ARGS 20
+
 void salvar_historico(char *input) {
-  FILE *file = fopen("history.txt", "a");
-
-  if (file == NULL) {
-    printf("Erro ao abrir arquivo\n");
-    return;
+  FILE *f = fopen("history.txt", "a");
+  if (f != NULL) {
+    fprintf(f, "%s\n", input);
+    fclose(f);
   }
-
-  fprintf(file, "%s\n", input);
-  fclose(file);
 }
 
 void limpar_historico() {
-  FILE *file = fopen("history.txt", "w");
+  FILE *f = fopen("history.txt", "w");
+  if (f != NULL) {
+    fclose(f);
+  }
+}
 
-  if (file == NULL) {
-    printf("Erro ao limpar histórico\n");
+int parse_input(char *input, char **args) {
+  int i = 0;
+
+  args[i] = strtok(input, " ");
+  while (args[i] != NULL && i < MAX_ARGS - 1) {
+    i++;
+    args[i] = strtok(NULL, " ");
+  }
+
+  return i;
+}
+
+void cmd_echo(char **args) {
+  for (int i = 1; args[i] != NULL; i++) {
+    printf("%s ", args[i]);
+  }
+  printf("\n");
+}
+
+void cmd_sum(char **args) {
+  int total = 0;
+
+  for (int i = 1; args[i] != NULL; i++) {
+    total += atoi(args[i]);
+  }
+
+  printf("Resultado: %d\n", total);
+}
+
+void cmd_run(char **args) {
+  if (args[1] == NULL) {
+    printf("Uso: run <comando>\n");
     return;
   }
 
-  fclose(file);
-  printf("Histórico limpo!\n");
+  system(args[1]);
+}
+
+void cmd_cd(char **args) {
+  if (args[1] == NULL) {
+    printf("Uso: cd <diretorio>\n");
+    return;
+  }
+
+  if (chdir(args[1]) != 0) {
+    printf("Erro ao mudar diretório\n");
+  }
+}
+
+void cmd_history(char **args) {
+  FILE *f = fopen("history.txt", "r");
+  if (f == NULL) {
+    printf("Sem histórico\n");
+    return;
+  }
+
+  char linha[256];
+  int count = 1;
+
+  while (fgets(linha, sizeof(linha), f)) {
+    printf("%d: %s", count, linha);
+    count++;
+  }
+
+  fclose(f);
+}
+
+void cmd_clear_history(char **args) {
+  limpar_historico();
+  printf("Histórico limpo\n");
+}
+
+void cmd_repeat(char **args) {
+  if (args[1] == NULL) {
+    printf("Uso: repeat <numero>\n");
+    return;
+  }
+
+  int alvo = atoi(args[1]);
+
+  FILE *f = fopen("history.txt", "r");
+  if (f == NULL) {
+    printf("Erro ao abrir histórico\n");
+    return;
+  }
+
+  char linha[256];
+  int count = 1;
+  int encontrado = 0;
+
+  while (fgets(linha, sizeof(linha), f)) {
+    if (count == alvo) {
+      linha[strcspn(linha, "\n")] = '\0'; // remove \n
+      printf("Executando: %s\n", linha);
+      system(linha);
+      encontrado = 1;
+      break;
+    }
+    count++;
+  }
+
+  if (!encontrado) {
+    printf("Linha não encontrada\n");
+  }
+
+  fclose(f);
+}
+
+typedef struct {
+  char *name;
+  void (*func)(char **args);
+} Command;
+
+Command commands[] = {
+    {"echo", cmd_echo},       {"sum", cmd_sum},
+    {"run", cmd_run},         {"cd", cmd_cd},
+    {"history", cmd_history}, {"clear_history", cmd_clear_history},
+    {"repeat", cmd_repeat}};
+
+int total_commands = sizeof(commands) / sizeof(Command);
+
+// ===================== HELP =====================
+
+void cmd_help(char **args) {
+  printf("Comandos disponíveis:\n");
+
+  for (int i = 0; i < total_commands; i++) {
+    printf("- %s\n", commands[i].name);
+  }
+
+  printf("- exit\n");
 }
 
 int main() {
-  char input[100];
-  char *comandos[] = {"help",          "echo", "sum", "history",
-                      "clear_history", "run",  "cd",  "repeat"};
-
-  int total_comandos = 8;
+  char input[MAX_INPUT];
+  char *args[MAX_ARGS];
 
   while (1) {
     printf("> ");
-    fgets(input, sizeof(input), stdin);
 
-    input[strcspn(input, "\r\n")] = 0;
+    if (fgets(input, sizeof(input), stdin) == NULL) {
+      break;
+    }
 
-    salvar_historico(input);
+    char original[MAX_INPUT];
+    strcpy(original, input);
 
-    char *cmd = strtok(input, " ");
+    input[strcspn(input, "\n")] = '\0';
+    original[strcspn(original, "\n")] = '\0';
 
-    if (cmd == NULL)
+    if (strlen(original) > 0) {
+      salvar_historico(original);
+    }
+
+    parse_input(input, args);
+
+    if (args[0] == NULL)
       continue;
 
-    if (strcmp(cmd, "exit") == 0) {
+    if (strcmp(args[0], "exit") == 0) {
       printf("Saindo...\n");
       break;
-    } else if (strcmp(cmd, "cd") == 0) {
-      char *path = strtok(NULL, " ");
-
-      if (path == NULL) {
-        printf("Use: cd <diretorio>\n");
-      } else {
-        if (chdir(path) != 0) {
-          printf("Erro ao mudar diretório\n");
-        }
-      }
-    } else if (strcmp(cmd, "history") == 0) {
-      FILE *file = fopen("history.txt", "r");
-
-      if (file == NULL) {
-        printf("Nenhum histórico encontrado\n");
-        continue;
-      }
-
-      char linha[100];
-      int contador = 1;
-
-      while (fgets(linha, sizeof(linha), file)) {
-        printf("%d: %s", contador, linha);
-        contador++;
-      }
-
-      fclose(file);
     }
 
-    else if (strcmp(cmd, "clear_history") == 0) {
-      limpar_historico();
+    if (strcmp(args[0], "help") == 0) {
+      cmd_help(args);
+      continue;
     }
 
-    else if (strcmp(cmd, "run") == 0) {
-      char comando[100] = "";
+    // dispatcher
+    int encontrado = 0;
 
-      char *token = strtok(NULL, " ");
-
-      if (token == NULL) {
-        printf("Use: run <comando>\n");
-        continue;
-      }
-
-      while (token != NULL) {
-        strcat(comando, token);
-        strcat(comando, " ");
-        token = strtok(NULL, " ");
-      }
-
-      printf("Executando: %s\n", comando);
-      system(comando);
-    }
-
-    else if (strcmp(cmd, "repeat") == 0) {
-      char *arg = strtok(NULL, " ");
-
-      if (arg == NULL) {
-        printf("Uso: repeat <numero>\n");
-        continue;
-      }
-
-      int num = atoi(arg);
-      FILE *file = fopen("history.txt", "r");
-
-      if (file == NULL) {
-        printf("Nenhum histórico encontrado\n");
-        continue;
-      }
-
-      char linha_arq[100];
-      int contador = 0;
-      char comando_salvo[100] = "";
-      int encontrado = 0;
-
-      while (fgets(linha_arq, sizeof(linha_arq), file)) {
-        contador++;
-        if (contador == num) {
-          strcpy(comando_salvo, linha_arq);
-          encontrado = 1;
-          break;
-        }
-      }
-
-      fclose(file);
-
-      if (encontrado) {
-        comando_salvo[strcspn(comando_salvo, "\r\n")] = 0;
-        printf("Executando: %s\n", comando_salvo);
-        system(comando_salvo);
-      } else {
-        printf("Linha %d não encontrada no histórico\n", num);
+    for (int i = 0; i < total_commands; i++) {
+      if (strcmp(args[0], commands[i].name) == 0) {
+        commands[i].func(args);
+        encontrado = 1;
+        break;
       }
     }
 
-    // help
-    else if (strcmp(cmd, "help") == 0) {
-      printf("Comandos disponíveis:\n");
-
-      for (int i = 0; i < total_comandos; i++) {
-        printf("- %s\n", comandos[i]);
-      }
-    }
-
-    // echo
-    else if (strcmp(cmd, "echo") == 0) {
-      char *token = strtok(NULL, " ");
-      while (token != NULL) {
-        printf("%s ", token);
-        token = strtok(NULL, " ");
-      }
-      printf("\n");
-    }
-
-    // sum
-    else if (strcmp(cmd, "sum") == 0) {
-      char *token = strtok(NULL, " ");
-      int total = 0;
-
-      while (token != NULL) {
-        total += atoi(token);
-        token = strtok(NULL, " ");
-      }
-
-      printf("Resultado: %d\n", total);
-    }
-
-    // comando desconhecido
-    else {
+    if (!encontrado) {
       printf("Comando desconhecido\n");
     }
   }
